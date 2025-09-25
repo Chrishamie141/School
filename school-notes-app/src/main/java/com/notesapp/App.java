@@ -1,0 +1,13 @@
+package com.notesapp;
+
+import com.notesapp.db.Db;
+import com.notesapp.core.TranscriptionService;
+
+public class App {
+    public static void main(String[] args) {
+        Db.init();
+        var svc = new TranscriptionService();
+        System.out.println("Transcription stub: " + svc.transcribePlaceholder());
+        System.out.println("Week One bootstrap complete.");
+    }
+}
