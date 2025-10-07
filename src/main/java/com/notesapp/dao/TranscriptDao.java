@@ -1,5 +1,7 @@
 package com.notesapp.dao;
 
+import com.notesapp.db.DatabaseManager;
+
 import java.sql.*;
 import java.util.Optional;
 
@@ -43,7 +45,7 @@ public class TranscriptDao {
 
     /** Add missing 'text' or 'created_at' columns for older DBs. Idempotent. */
     public static void migrate(Connection conn) throws SQLException {
-        createTable(conn); // ensure base table
+        createTable(conn);
 
         boolean hasText = hasColumn(conn, "transcripts", "text");
         boolean hasContent = hasColumn(conn, "transcripts", "content");
@@ -98,7 +100,12 @@ public class TranscriptDao {
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setLong(1, recordingId);
             ps.setString(2, text == null ? "" : text);
-            return ps.executeUpdate();
+            int updated = ps.executeUpdate();
+            DatabaseManager.commit();     // ✅ commit on success
+            return updated;
+        } catch (SQLException e) {
+            DatabaseManager.rollback();   // 🔁 rollback on error
+            throw e;
         }
     }
 
@@ -127,14 +134,21 @@ public class TranscriptDao {
         }
     }
 
+    // ---------- Deletes ----------
     public int deleteByRecordingId(long recordingId) throws SQLException {
-        try (PreparedStatement ps = conn.prepareStatement("DELETE FROM transcripts WHERE recording_id = ?")) {
+        String sql = "DELETE FROM transcripts WHERE recording_id = ?";
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setLong(1, recordingId);
-            return ps.executeUpdate();
+            int deleted = ps.executeUpdate();
+            DatabaseManager.commit();
+            return deleted;
+        } catch (SQLException e) {
+            DatabaseManager.rollback();
+            throw e;
         }
     }
 
-    // ---------- Title-based helpers (for MainController UI) ----------
+    // ---------- Title-based helpers (UI) ----------
     public Optional<String> findByTitle(String title) throws SQLException {
         String sql = """
             SELECT t.text
@@ -161,6 +175,10 @@ public class TranscriptDao {
             ps.setString(1, transcript);
             ps.setString(2, title);
             ps.executeUpdate();
+            DatabaseManager.commit();     // ✅ commit save
+        } catch (SQLException e) {
+            DatabaseManager.rollback();
+            throw e;
         }
     }
 }
