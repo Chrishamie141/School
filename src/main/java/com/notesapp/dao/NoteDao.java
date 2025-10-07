@@ -1,5 +1,7 @@
 package com.notesapp.dao;
 
+import com.notesapp.db.DatabaseManager;
+
 import java.sql.*;
 import java.util.Optional;
 
@@ -83,7 +85,12 @@ public class NoteDao {
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setLong(1, recordingId);
             ps.setString(2, content == null ? "" : content);
-            return ps.executeUpdate();
+            int updated = ps.executeUpdate();
+            DatabaseManager.commit();
+            return updated;
+        } catch (SQLException e) {
+            DatabaseManager.rollback();
+            throw e;
         }
     }
 
@@ -114,6 +121,10 @@ public class NoteDao {
             ps.setString(1, title);
             ps.setString(2, content);
             ps.executeUpdate();
+            DatabaseManager.commit();
+        } catch (SQLException e) {
+            DatabaseManager.rollback();
+            throw e;
         }
     }
 
@@ -138,9 +149,15 @@ public class NoteDao {
     }
 
     public int deleteByRecordingId(long recordingId) throws SQLException {
-        try (PreparedStatement ps = conn.prepareStatement("DELETE FROM notes WHERE recording_id=?")) {
+        String sql = "DELETE FROM notes WHERE recording_id=?";
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setLong(1, recordingId);
-            return ps.executeUpdate();
+            int deleted = ps.executeUpdate();
+            DatabaseManager.commit();
+            return deleted;
+        } catch (SQLException e) {
+            DatabaseManager.rollback();
+            throw e;
         }
     }
 }
