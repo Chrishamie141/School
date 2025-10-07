@@ -1,5 +1,6 @@
 package com.notesapp.dao;
 
+import com.notesapp.db.DatabaseManager;
 import com.notesapp.model.Recording;
 
 import java.lang.reflect.Field;
@@ -28,19 +29,14 @@ public class RecordingDao {
                 )
             """);
         }
-        // path column variants (prefer audio_path for CLI compatibility)
         ensureAny(conn, "recordings", new String[]{"audio_path", "file_path", "path"},
                 "ALTER TABLE recordings ADD COLUMN audio_path TEXT");
-        // duration column variants
         ensureAny(conn, "recordings", new String[]{"duration_ms", "duration"},
                 "ALTER TABLE recordings ADD COLUMN duration_ms INTEGER NOT NULL DEFAULT 0");
-        // created/recorded time variants
         ensureAny(conn, "recordings", new String[]{"created_at", "created_at_ms", "timestamp", "recorded_at"},
                 "ALTER TABLE recordings ADD COLUMN created_at INTEGER NOT NULL DEFAULT 0");
-        // optional class name
         ensureAny(conn, "recordings", new String[]{"class_name"},
                 "ALTER TABLE recordings ADD COLUMN class_name TEXT");
-        // ✅ Week 6: tag column
         ensureAny(conn, "recordings", new String[]{"tag"},
                 "ALTER TABLE recordings ADD COLUMN tag TEXT DEFAULT ''");
     }
@@ -60,7 +56,6 @@ public class RecordingDao {
         return false;
     }
 
-    /** Return first existing column among the given names, or throw if none exist. */
     private String existingColOrThrow(String... names) throws SQLException {
         for (String n : names) if (hasColumn(conn, "recordings", n)) return n;
         throw new SQLException("None of the expected columns exist: " + String.join(",", names));
@@ -81,7 +76,6 @@ public class RecordingDao {
         return "duration_ms";
     }
 
-    /** Return list of existing created-time columns we should populate. */
     private List<String> createdCols() throws SQLException {
         List<String> cols = new ArrayList<>();
         if (hasColumn(conn, "recordings", "created_at")) cols.add("created_at");
@@ -118,14 +112,16 @@ public class RecordingDao {
             ps.setLong(idx++, durationMs);
             for (int i = 0; i < ccols.size(); i++) ps.setLong(idx++, createdAtEpochMs);
             ps.executeUpdate();
-
+            DatabaseManager.commit(); // ✅ Commit transaction
             Long id = readGeneratedKeyOrFallback(ps, conn);
             if (id != null) return id;
+        } catch (SQLException e) {
+            DatabaseManager.rollback(); // 🔁 Rollback on error
+            throw e;
         }
         throw new SQLException("Failed to insert recording (no id returned)");
     }
 
-    /* ---------------- Test-compat API (model in/out) ---------------- */
     public Recording insert(Recording r) throws SQLException {
         String title     = pickString(r, "getTitle", "title", "getName", "name");
         String filePath  = pickString(r, "getFilePath", "getPath", "getAudioPath", "path", "filePath", "file");
@@ -153,18 +149,20 @@ public class RecordingDao {
             for (int i = 0; i < ccols.size(); i++) ps.setLong(idx++, createdAtMs);
             if (className == null || className.isBlank()) ps.setNull(idx, Types.VARCHAR); else ps.setString(idx, className);
             ps.executeUpdate();
-
+            DatabaseManager.commit(); // ✅ commit success
             Long id = readGeneratedKeyOrFallback(ps, conn);
             if (id != null) {
                 setIdOnModel(r, id);
                 setString(r, "setClassName", className);
                 return r;
             }
+        } catch (SQLException e) {
+            DatabaseManager.rollback(); // 🔁 rollback on failure
+            throw e;
         }
         throw new SQLException("Failed to insert recording (no id returned)");
     }
 
-    /** Robust id retrieval for SQLite */
     private static Long readGeneratedKeyOrFallback(PreparedStatement ps, Connection c) {
         try (ResultSet rs = ps.getGeneratedKeys()) {
             if (rs != null && rs.next()) return rs.getLong(1);
@@ -210,7 +208,7 @@ public class RecordingDao {
         }
     }
 
-    /* ---------------- Simple helpers for Week 6 UI ---------------- */
+    /* ---------------- Simple helpers ---------------- */
     public List<String> getAllRecordingNames() throws SQLException {
         List<String> list = new ArrayList<>();
         try (PreparedStatement ps = conn.prepareStatement("SELECT title FROM recordings ORDER BY id");
@@ -247,10 +245,14 @@ public class RecordingDao {
             ps.setString(1, tag);
             ps.setString(2, title);
             ps.executeUpdate();
+            DatabaseManager.commit(); // ✅ commit change
+        } catch (SQLException e) {
+            DatabaseManager.rollback();
+            throw e;
         }
     }
 
-    /* ---------------- Reflection-based mapping helpers ---------------- */
+    /* ---------------- Reflection helpers ---------------- */
     private Recording mapToModel(ResultSet rs) throws SQLException {
         long id         = rs.getLong("id");
         String title    = rs.getString("title");
@@ -309,6 +311,7 @@ public class RecordingDao {
         }
         return "";
     }
+
     private static String pickStringOrNull(Object obj, String... names) {
         for (String n : names) {
             try { Method m = obj.getClass().getMethod(n); Object v = m.invoke(obj);
@@ -317,6 +320,7 @@ public class RecordingDao {
         }
         return null;
     }
+
     private static long pickLong(Object obj, long def, String... names) {
         for (String n : names) {
             try {
@@ -330,11 +334,16 @@ public class RecordingDao {
         return def;
     }
 
-    /* ---------- Legacy test helpers (for integration tests) ---------- */
+    /* ---------- Legacy test helpers ---------- */
     public int deleteById(long id) throws SQLException {
         try (PreparedStatement ps = conn.prepareStatement("DELETE FROM recordings WHERE id=?")) {
             ps.setLong(1, id);
-            return ps.executeUpdate();
+            int rows = ps.executeUpdate();
+            DatabaseManager.commit();
+            return rows;
+        } catch (SQLException e) {
+            DatabaseManager.rollback();
+            throw e;
         }
     }
 
@@ -343,6 +352,10 @@ public class RecordingDao {
             ps.setString(1, className);
             ps.setInt(2, id);
             ps.executeUpdate();
+            DatabaseManager.commit();
+        } catch (SQLException e) {
+            DatabaseManager.rollback();
+            throw e;
         }
     }
 }
