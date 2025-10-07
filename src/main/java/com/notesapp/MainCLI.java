@@ -10,8 +10,6 @@ import com.notesapp.transcription.WhisperCppTranscriber;
 
 import java.nio.file.*;
 import java.sql.*;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 
 public class MainCLI {
 
@@ -67,21 +65,22 @@ public class MainCLI {
                     }
                 }
 
-                /* ---------- Delete recording ---------- */
+                /* ---------- Delete recording (SQL, no DAO dep) ---------- */
                 case "delete" -> {
                     if (args.length < 2) {
                         System.out.println("Usage: delete <recordingId>");
                         return;
                     }
                     long rid = Long.parseLong(args[1]);
-                    try (Connection conn = open()) {
-                        var rdao = new RecordingDao(conn);
-                        int n = rdao.deleteById(rid);
+                    try (Connection conn = open();
+                         PreparedStatement ps = conn.prepareStatement("DELETE FROM recordings WHERE id=?")) {
+                        ps.setLong(1, rid);
+                        int n = ps.executeUpdate();
                         System.out.println(n > 0 ? "Deleted." : "Nothing deleted.");
                     }
                 }
 
-                /* ---------- Export PDF ---------- */
+                /* ---------- Export PDF (use 4-arg exporter) ---------- */
                 case "export" -> {
                     if (args.length < 3) {
                         System.out.println("Usage: export <recordingId> <out.pdf>");
@@ -103,7 +102,9 @@ public class MainCLI {
                                 "SELECT " + resolveTranscriptBodyColumn(conn) +
                                         " FROM transcripts WHERE recording_id=?", rid);
 
-                        PdfExporter.export(title, note, transcript, tag, out);
+                        // Avoid dependency on 5-arg PdfExporter; fold tag into title here.
+                        String finalTitle = (tag == null || tag.isBlank()) ? title : (title + " [" + tag + "]");
+                        PdfExporter.export(finalTitle, note, transcript, out);
                         System.out.println("Exported to " + out.toAbsolutePath());
                     }
                 }
@@ -239,6 +240,7 @@ public class MainCLI {
         RecordingDao.createTable(conn);
         NoteDao.createTable(conn);
         TranscriptDao.createTable(conn);
+        // Ensure tag column exists (idempotent)
         try (Statement st = conn.createStatement()) {
             st.execute("ALTER TABLE recordings ADD COLUMN tag TEXT DEFAULT ''");
         } catch (SQLException ignored) {}

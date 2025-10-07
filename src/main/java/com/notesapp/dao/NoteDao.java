@@ -18,7 +18,8 @@ public class NoteDao {
             st.executeUpdate("""
                 CREATE TABLE IF NOT EXISTS notes (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    recording_id INTEGER NOT NULL UNIQUE,
+                    recording_id INTEGER UNIQUE,
+                    title TEXT,
                     content TEXT NOT NULL,
                     created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
                     updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -32,22 +33,14 @@ public class NoteDao {
     private static boolean hasColumn(Connection c, String table, String col) throws SQLException {
         try (PreparedStatement ps = c.prepareStatement("PRAGMA table_info(" + table + ")")) {
             try (ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) {
-                    if (col.equalsIgnoreCase(rs.getString("name"))) return true;
-                }
+                while (rs.next()) if (col.equalsIgnoreCase(rs.getString("name"))) return true;
             }
         }
         return false;
     }
 
-    /** Add missing created_at / updated_at columns if an older DB exists. Idempotent. */
     public static void migrate(Connection conn) throws SQLException {
-        createTable(conn); // safe even if exists
-        if (!hasColumn(conn, "notes", "created_at")) {
-            try (Statement st = conn.createStatement()) {
-                st.executeUpdate("ALTER TABLE notes ADD COLUMN created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP");
-            }
-        }
+        createTable(conn);
         if (!hasColumn(conn, "notes", "updated_at")) {
             try (Statement st = conn.createStatement()) {
                 st.executeUpdate("ALTER TABLE notes ADD COLUMN updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP");
@@ -55,7 +48,7 @@ public class NoteDao {
         }
     }
 
-    // ---------- Row type ----------
+    // ---------- Row type for tests ----------
     public static class NoteRow {
         private final long id;
         private final long recordingId;
@@ -78,15 +71,7 @@ public class NoteDao {
         public String getUpdatedAt() { return updatedAt; }
     }
 
-    // ---------- Upserts (overloads to match earlier tests) ----------
-    public int upsertByRecordingId(int recordingId, String content, String _unused) throws SQLException {
-        return upsertByRecordingId((long) recordingId, content);
-    }
-
-    public int upsertByRecordingId(int recordingId, String content) throws SQLException {
-        return upsertByRecordingId((long) recordingId, content);
-    }
-
+    // ---------- Upserts ----------
     public int upsertByRecordingId(long recordingId, String content) throws SQLException {
         final String sql = """
             INSERT INTO notes (recording_id, content, created_at, updated_at)
@@ -102,34 +87,58 @@ public class NoteDao {
         }
     }
 
-    // ---------- Reads ----------
-    public Optional<NoteRow> findByRecordingId(int recordingId) throws SQLException {
-        return findByRecordingId((long) recordingId);
+    /** Legacy overload for tests */
+    public int upsertByRecordingId(int recordingId, String content, String _unused) throws SQLException {
+        return upsertByRecordingId((long) recordingId, content);
     }
 
-    public Optional<NoteRow> findByRecordingId(long recordingId) throws SQLException {
-        final String sql = """
-            SELECT id, recording_id, content, created_at, updated_at
-            FROM notes
-            WHERE recording_id = ?
+    // ---------- Title-based access (UI) ----------
+    public Optional<String> findByTitle(String title) throws SQLException {
+        String sql = "SELECT content FROM notes WHERE title=?";
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, title);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) return Optional.ofNullable(rs.getString("content"));
+            }
+        }
+        return Optional.empty();
+    }
+
+    public void save(String title, String content) throws SQLException {
+        String sql = """
+            INSERT INTO notes(title, content)
+            VALUES(?, ?)
+            ON CONFLICT(title) DO UPDATE SET content=excluded.content
         """;
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setLong(1, recordingId);
-            try (ResultSet rs = ps.executeQuery()) {
-                if (!rs.next()) return Optional.empty();
-                return Optional.of(new NoteRow(
-                    rs.getLong("id"),
-                    rs.getLong("recording_id"),
-                    rs.getString("content"),
-                    rs.getString("created_at"),
-                    rs.getString("updated_at")
-                ));
-            }
+            ps.setString(1, title);
+            ps.setString(2, content);
+            ps.executeUpdate();
         }
     }
 
+    // ---------- Record-based read/delete ----------
+    public Optional<NoteRow> findByRecordingId(long recordingId) throws SQLException {
+        String sql = "SELECT * FROM notes WHERE recording_id=?";
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setLong(1, recordingId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    return Optional.of(new NoteRow(
+                        rs.getLong("id"),
+                        rs.getLong("recording_id"),
+                        rs.getString("content"),
+                        rs.getString("created_at"),
+                        rs.getString("updated_at")
+                    ));
+                }
+            }
+        }
+        return Optional.empty();
+    }
+
     public int deleteByRecordingId(long recordingId) throws SQLException {
-        try (PreparedStatement ps = conn.prepareStatement("DELETE FROM notes WHERE recording_id = ?")) {
+        try (PreparedStatement ps = conn.prepareStatement("DELETE FROM notes WHERE recording_id=?")) {
             ps.setLong(1, recordingId);
             return ps.executeUpdate();
         }

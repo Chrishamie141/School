@@ -329,4 +329,20 @@ public class RecordingDao {
         }
         return def;
     }
+
+    /* ---------- Legacy test helpers (for integration tests) ---------- */
+    public int deleteById(long id) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement("DELETE FROM recordings WHERE id=?")) {
+            ps.setLong(1, id);
+            return ps.executeUpdate();
+        }
+    }
+
+    public void updateClassName(int id, String className) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement("UPDATE recordings SET class_name=? WHERE id=?")) {
+            ps.setString(1, className);
+            ps.setInt(2, id);
+            ps.executeUpdate();
+        }
+    }
 }

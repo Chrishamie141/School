@@ -79,7 +79,7 @@ public class TranscriptDao {
         public String getCreatedAt() { return createdAt; }
     }
 
-    // ---------- Upserts (overloads) ----------
+    // ---------- Upserts ----------
     public int upsertByRecordingId(int recordingId, String text, String _unused) throws SQLException {
         return upsertByRecordingId((long) recordingId, text);
     }
@@ -131,6 +131,36 @@ public class TranscriptDao {
         try (PreparedStatement ps = conn.prepareStatement("DELETE FROM transcripts WHERE recording_id = ?")) {
             ps.setLong(1, recordingId);
             return ps.executeUpdate();
+        }
+    }
+
+    // ---------- Title-based helpers (for MainController UI) ----------
+    public Optional<String> findByTitle(String title) throws SQLException {
+        String sql = """
+            SELECT t.text
+            FROM transcripts t
+            JOIN recordings r ON r.id = t.recording_id
+            WHERE r.title = ?
+        """;
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, title);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) return Optional.ofNullable(rs.getString("text"));
+            }
+        }
+        return Optional.empty();
+    }
+
+    public void save(String title, String transcript) throws SQLException {
+        String sql = """
+            INSERT INTO transcripts(recording_id, text)
+            SELECT id, ? FROM recordings WHERE title=?
+            ON CONFLICT(recording_id) DO UPDATE SET text=excluded.text
+        """;
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, transcript);
+            ps.setString(2, title);
+            ps.executeUpdate();
         }
     }
 }
