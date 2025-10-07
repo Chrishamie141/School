@@ -1,0 +1,136 @@
+package com.notesapp.dao;
+
+import java.sql.*;
+import java.util.Optional;
+
+public class TranscriptDao {
+    private final Connection conn;
+
+    public TranscriptDao(Connection conn) throws SQLException {
+        this.conn = conn;
+        try (Statement s = conn.createStatement()) {
+            s.execute("PRAGMA foreign_keys = ON");
+        }
+        createTable(conn);
+    }
+
+    /** Create table if not exists (idempotent). */
+    public static void createTable(Connection conn) throws SQLException {
+        try (Statement st = conn.createStatement()) {
+            st.executeUpdate("""
+                CREATE TABLE IF NOT EXISTS transcripts (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    recording_id INTEGER NOT NULL UNIQUE,
+                    text TEXT,
+                    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (recording_id) REFERENCES recordings(id) ON DELETE CASCADE
+                )
+            """);
+        }
+    }
+
+    // ---------- MIGRATION HELPERS ----------
+    private static boolean hasColumn(Connection c, String table, String col) throws SQLException {
+        try (PreparedStatement ps = c.prepareStatement("PRAGMA table_info(" + table + ")")) {
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    if (col.equalsIgnoreCase(rs.getString("name"))) return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    /** Add missing 'text' or 'created_at' columns for older DBs. Idempotent. */
+    public static void migrate(Connection conn) throws SQLException {
+        createTable(conn); // ensure base table
+
+        boolean hasText = hasColumn(conn, "transcripts", "text");
+        boolean hasContent = hasColumn(conn, "transcripts", "content");
+        if (!hasText && !hasContent) {
+            try (Statement st = conn.createStatement()) {
+                st.executeUpdate("ALTER TABLE transcripts ADD COLUMN text TEXT");
+            }
+        }
+        if (!hasColumn(conn, "transcripts", "created_at")) {
+            try (Statement st = conn.createStatement()) {
+                st.executeUpdate("ALTER TABLE transcripts ADD COLUMN created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP");
+            }
+        }
+    }
+
+    // ---------- Row type ----------
+    public static class TranscriptRow {
+        private final long id;
+        private final long recordingId;
+        private final String text;
+        private final String createdAt;
+
+        public TranscriptRow(long id, long recordingId, String text, String createdAt) {
+            this.id = id;
+            this.recordingId = recordingId;
+            this.text = text;
+            this.createdAt = createdAt;
+        }
+
+        public long getId() { return id; }
+        public long getRecordingId() { return recordingId; }
+        public String getText() { return text; }
+        public String getCreatedAt() { return createdAt; }
+    }
+
+    // ---------- Upserts (overloads) ----------
+    public int upsertByRecordingId(int recordingId, String text, String _unused) throws SQLException {
+        return upsertByRecordingId((long) recordingId, text);
+    }
+
+    public int upsertByRecordingId(int recordingId, String text) throws SQLException {
+        return upsertByRecordingId((long) recordingId, text);
+    }
+
+    public int upsertByRecordingId(long recordingId, String text) throws SQLException {
+        final String sql = """
+            INSERT INTO transcripts (recording_id, text, created_at)
+            VALUES (?, ?, CURRENT_TIMESTAMP)
+            ON CONFLICT(recording_id) DO UPDATE SET
+              text = excluded.text
+        """;
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setLong(1, recordingId);
+            ps.setString(2, text == null ? "" : text);
+            return ps.executeUpdate();
+        }
+    }
+
+    // ---------- Reads ----------
+    public Optional<TranscriptRow> findByRecordingId(int recordingId) throws SQLException {
+        return findByRecordingId((long) recordingId);
+    }
+
+    public Optional<TranscriptRow> findByRecordingId(long recordingId) throws SQLException {
+        final String sql = """
+            SELECT id, recording_id, text, created_at
+            FROM transcripts
+            WHERE recording_id = ?
+        """;
+        try (PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setLong(1, recordingId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (!rs.next()) return Optional.empty();
+                return Optional.of(new TranscriptRow(
+                    rs.getLong("id"),
+                    rs.getLong("recording_id"),
+                    rs.getString("text"),
+                    rs.getString("created_at")
+                ));
+            }
+        }
+    }
+
+    public int deleteByRecordingId(long recordingId) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement("DELETE FROM transcripts WHERE recording_id = ?")) {
+            ps.setLong(1, recordingId);
+            return ps.executeUpdate();
+        }
+    }
+}

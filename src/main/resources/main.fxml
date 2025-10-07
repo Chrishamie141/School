@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<BorderPane xmlns:fx="http://javafx.com/fxml" fx:controller="com.notesapp.ui.MainController">
+
+    <!-- ===== Top Bar ===== -->
+    <top>
+        <VBox spacing="6" padding="10">
+            <HBox spacing="6">
+                <Label text="Search:"/>
+                <TextField fx:id="searchField" promptText="Search by title or tag..." HBox.hgrow="ALWAYS"/>
+                <Button text="Search" onAction="#onSearch"/>
+                <Button text="New Recording" onAction="#onNewRecording"/>
+            </HBox>
+
+            <HBox spacing="6">
+                <Label text="Tag:"/>
+                <TextField fx:id="tagField" promptText="Add or edit tag..." HBox.hgrow="ALWAYS"/>
+                <Button text="Save" onAction="#onSave"/>
+            </HBox>
+        </VBox>
+    </top>
+
+    <!-- ===== Main Body ===== -->
+    <center>
+        <SplitPane dividerPositions="0.3">
+            <!-- Left: Recording list -->
+            <VBox spacing="6" padding="8">
+                <Label text="Recordings"/>
+                <ListView fx:id="recordingList" prefWidth="200" onMouseClicked="#onRecordingSelect"/>
+            </VBox>
+
+            <!-- Right: Notes and Transcript -->
+            <VBox spacing="10" padding="8">
+                <Label text="Notes"/>
+                <TextArea fx:id="noteArea" wrapText="true" prefRowCount="10"/>
+
+                <Label text="Transcript"/>
+                <TextArea fx:id="transcriptArea" wrapText="true" prefRowCount="10"/>
+            </VBox>
+        </SplitPane>
+    </center>
+
+    <!-- ===== Bottom Status Bar ===== -->
+    <bottom>
+        <HBox spacing="10" padding="8" style="-fx-background-color:#f0f0f0;">
+            <Label text="Status:"/>
+            <Label fx:id="statusLabel" text="Ready"/>
+        </HBox>
+    </bottom>
+
+</BorderPane>

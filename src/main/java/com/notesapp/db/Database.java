@@ -1,0 +1,62 @@
+package com.notesapp.db;
+
+import java.sql.*;
+import java.nio.file.*;
+
+public class Database {
+  private static Connection CONN;
+
+  public static synchronized Connection get() throws SQLException {
+    try { Files.createDirectories(Paths.get("data")); } catch (Exception ignored) {}
+    if (CONN == null) {
+      CONN = DriverManager.getConnection("jdbc:sqlite:data/app.db");
+      try (Statement s = CONN.createStatement()) {
+        s.execute("PRAGMA foreign_keys=ON");
+      }
+      init(CONN);
+    }
+    return CONN;
+  }
+
+  private static void init(Connection c) throws SQLException {
+    try (Statement st = c.createStatement()) {
+      st.executeUpdate("""
+        CREATE TABLE IF NOT EXISTS recordings(
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          title TEXT NOT NULL,
+          path TEXT NOT NULL,
+          duration_sec INTEGER DEFAULT 0,
+          recorded_at TEXT NOT NULL,
+          class_name TEXT
+        )
+      """);
+
+      st.executeUpdate("""
+        CREATE TABLE IF NOT EXISTS transcripts(
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          recording_id INTEGER NOT NULL,
+          content TEXT NOT NULL,
+          created_at TEXT NOT NULL,
+          FOREIGN KEY(recording_id) REFERENCES recordings(id) ON DELETE CASCADE
+        )
+      """);
+
+      st.executeUpdate("""
+        CREATE TABLE IF NOT EXISTS notes(
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          recording_id INTEGER NOT NULL,
+          content TEXT NOT NULL,
+          updated_at TEXT NOT NULL,
+          UNIQUE(recording_id),
+          FOREIGN KEY(recording_id) REFERENCES recordings(id) ON DELETE CASCADE
+        )
+      """);
+
+      // Ensure uniqueness for transcripts.recording_id even on existing DBs
+      st.executeUpdate("""
+        CREATE UNIQUE INDEX IF NOT EXISTS idx_transcripts_recording_unique
+        ON transcripts(recording_id)
+      """);
+    }
+  }
+}

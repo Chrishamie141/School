@@ -1,0 +1,40 @@
+package com.notesapp.dao;
+
+import org.junit.jupiter.api.*;
+import java.sql.*;
+
+import static org.junit.jupiter.api.Assertions.*;
+
+public class RecordingDaoTest {
+    Connection conn;
+    RecordingDao dao;
+
+    @BeforeEach
+    void setup() throws Exception {
+        conn = DriverManager.getConnection("jdbc:sqlite::memory:");
+        RecordingDao.createTable(conn);
+        dao = new RecordingDao(conn);
+    }
+
+    @AfterEach
+    void tearDown() throws Exception {
+        conn.close();
+    }
+
+    @Test
+    void insertAndFetch() throws Exception {
+        long id = dao.insert("Lecture 1", "/tmp/lec1.wav", 12345L, System.currentTimeMillis());
+        var row = dao.findById(id);
+        assertNotNull(row);
+        assertEquals("Lecture 1", row.title());
+        assertEquals(12345L, row.durationMs());
+    }
+
+    @Test
+    void delete() throws Exception {
+        long id = dao.insert("x", "/tmp/x.wav", 1, System.currentTimeMillis());
+        int n = dao.deleteById(id);
+        assertEquals(1, n);
+        assertNull(dao.findById(id));
+    }
+}

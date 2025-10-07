@@ -1,0 +1,56 @@
+package com.notesapp.db;
+
+import java.sql.*;
+
+/**
+ * Centralized, idempotent DB migration helper.
+ * Safe to run multiple times. Adds missing columns used by the app.
+ */
+public final class DbMigrator {
+    private DbMigrator() {}
+
+    public static void migrate(Connection conn) throws SQLException {
+        // Ensure foreign keys
+        try (Statement st = conn.createStatement()) {
+            st.execute("PRAGMA foreign_keys = ON");
+        }
+
+        // --- transcripts: ensure body column exists (prefer 'text', fallback to 'content' if present) ---
+        // If neither 'text' nor 'content' exists, add modern 'text'
+        if (!hasCol(conn, "transcripts", "text") && !hasCol(conn, "transcripts", "content")) {
+            try (Statement st = conn.createStatement()) {
+                st.execute("ALTER TABLE transcripts ADD COLUMN text TEXT");
+            }
+        }
+
+        // Ensure created_at on transcripts
+        if (!hasCol(conn, "transcripts", "created_at")) {
+            try (Statement st = conn.createStatement()) {
+                st.execute("ALTER TABLE transcripts ADD COLUMN created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP");
+            }
+        }
+
+        // --- notes: ensure created_at/updated_at exist ---
+        if (!hasCol(conn, "notes", "created_at")) {
+            try (Statement st = conn.createStatement()) {
+                st.execute("ALTER TABLE notes ADD COLUMN created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP");
+            }
+        }
+        if (!hasCol(conn, "notes", "updated_at")) {
+            try (Statement st = conn.createStatement()) {
+                st.execute("ALTER TABLE notes ADD COLUMN updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP");
+            }
+        }
+    }
+
+    private static boolean hasCol(Connection conn, String table, String col) throws SQLException {
+        try (PreparedStatement ps = conn.prepareStatement("PRAGMA table_info(" + table + ")")) {
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    if (col.equalsIgnoreCase(rs.getString("name"))) return true;
+                }
+            }
+        }
+        return false;
+    }
+}
