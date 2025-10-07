@@ -3,6 +3,7 @@ package com.notesapp.ui;
 import com.notesapp.dao.NoteDao;
 import com.notesapp.dao.RecordingDao;
 import com.notesapp.dao.TranscriptDao;
+import com.notesapp.db.DatabaseManager;
 import com.notesapp.transcription.TranscriptionService;
 import com.notesapp.transcription.WhisperCppTranscriber;
 import javafx.application.Platform;
@@ -14,7 +15,6 @@ import javafx.util.Callback;
 
 import java.io.File;
 import java.sql.Connection;
-import java.sql.DriverManager;
 import java.util.List;
 
 public class MainController {
@@ -36,7 +36,7 @@ public class MainController {
     @FXML
     public void initialize() {
         try {
-            conn = DriverManager.getConnection("jdbc:sqlite:data/app.db");
+            conn = DatabaseManager.getConnection(); // unified connection
             recordingDao = new RecordingDao(conn);
             noteDao = new NoteDao(conn);
             transcriptDao = new TranscriptDao(conn);
@@ -44,9 +44,9 @@ public class MainController {
             configureListView();
             refreshRecordingList();
 
-            statusLabel.setText("Connected to database");
+            statusLabel.setText("✅ Connected to database");
         } catch (Exception e) {
-            statusLabel.setText("DB connection error: " + e.getMessage());
+            statusLabel.setText("❌ DB connection error: " + e.getMessage());
             e.printStackTrace();
         }
     }
@@ -102,7 +102,7 @@ public class MainController {
             recordingList.getItems().setAll(results);
             statusLabel.setText(results.size() + " result(s)");
         } catch (Exception e) {
-            statusLabel.setText("Search failed: " + e.getMessage());
+            statusLabel.setText("❌ Search failed: " + e.getMessage());
         }
     }
 
@@ -114,9 +114,9 @@ public class MainController {
             tagField.setText(recordingDao.getTagForRecording(title));
             noteArea.setText(noteDao.findByTitle(title).orElse(""));
             transcriptArea.setText(transcriptDao.findByTitle(title).orElse(""));
-            statusLabel.setText("Loaded: " + title);
+            statusLabel.setText("📂 Loaded: " + title);
         } catch (Exception e) {
-            statusLabel.setText("Load failed: " + e.getMessage());
+            statusLabel.setText("❌ Load failed: " + e.getMessage());
         }
     }
 
@@ -124,7 +124,7 @@ public class MainController {
     private void onSave(ActionEvent event) {
         String title = recordingList.getSelectionModel().getSelectedItem();
         if (title == null) {
-            statusLabel.setText("No recording selected");
+            statusLabel.setText("⚠️ No recording selected");
             return;
         }
         try {
@@ -132,13 +132,13 @@ public class MainController {
             recordingDao.setTagForRecording(title, tag);
             noteDao.save(title, noteArea.getText());
             transcriptDao.save(title, transcriptArea.getText());
+            statusLabel.setText("✅ Saved successfully");
 
-            statusLabel.setText("Saved successfully");
             Platform.runLater(() -> {
                 try { refreshRecordingList(); } catch (Exception ignored) {}
             });
         } catch (Exception e) {
-            statusLabel.setText("Save failed: " + e.getMessage());
+            statusLabel.setText("❌ Save failed: " + e.getMessage());
         }
     }
 
@@ -154,11 +154,55 @@ public class MainController {
             String title = file.getName();
             long id = recordingDao.insert(title, file.getAbsolutePath(), 0L, System.currentTimeMillis());
             refreshRecordingList();
-            statusLabel.setText("Added new recording: " + title + " (ID " + id + ")");
+            statusLabel.setText("🎧 Added new recording: " + title + " (ID " + id + ")");
         } catch (Exception e) {
-            statusLabel.setText("Add failed: " + e.getMessage());
+            statusLabel.setText("❌ Add failed: " + e.getMessage());
         }
     }
+
+    /* ---------------------- 🎙️ Transcribe & Save ---------------------- */
+
+    @FXML
+    private void onTranscribeAndSave(ActionEvent event) {
+        try {
+            FileChooser chooser = new FileChooser();
+            chooser.getExtensionFilters().add(
+                    new FileChooser.ExtensionFilter("Audio Files", "*.wav", "*.mp3", "*.m4a"));
+            File file = chooser.showOpenDialog(null);
+            if (file == null) {
+                statusLabel.setText("⚠️ No file selected");
+                return;
+            }
+
+            statusLabel.setText("🎙️ Transcribing " + file.getName() + "...");
+            // FIX: use transcribeAudio() instead of transcribe()
+            String transcriptText = transcriber.transcribeAudio(file.toPath());
+
+            if (transcriptText == null || transcriptText.isBlank()) {
+                statusLabel.setText("⚠️ No transcript text detected");
+                return;
+            }
+
+            long recordingId = recordingDao.insert(
+                    file.getName(),
+                    file.getAbsolutePath(),
+                    0L,
+                    System.currentTimeMillis()
+            );
+
+            transcriptDao.upsertByRecordingId(recordingId, transcriptText);
+            transcriptArea.setText(transcriptText);
+            statusLabel.setText("✅ Transcription saved for " + file.getName());
+
+            refreshRecordingList();
+
+        } catch (Exception e) {
+            statusLabel.setText("❌ Transcription failed: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+
+    /* ---------------------- Helpers ---------------------- */
 
     private void refreshRecordingList() {
         try {
@@ -166,7 +210,7 @@ public class MainController {
             recordingList.getItems().setAll(all);
             recordingList.refresh();
         } catch (Exception e) {
-            statusLabel.setText("Refresh failed: " + e.getMessage());
+            statusLabel.setText("❌ Refresh failed: " + e.getMessage());
         }
     }
 

@@ -14,6 +14,8 @@
                 <TextField fx:id="searchField" promptText="Search by title or tag..." HBox.hgrow="ALWAYS"/>
                 <Button text="Search" onAction="#onSearch"/>
                 <Button text="New Recording" onAction="#onNewRecording"/>
+                <Button text="Transcribe &amp; Save" onAction="#onTranscribeAndSave"/>
+
             </HBox>
 
             <HBox spacing="6">
