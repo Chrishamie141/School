@@ -1,7 +1,0 @@
-package com.notesapp.core;
-
-public class TranscriptionService {
-    public String transcribePlaceholder() {
-        return "Transcribed text here...";
-    }
-}
