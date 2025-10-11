@@ -1,17 +1,73 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
-<?import javafx.scene.layout.BorderPane?>
+<?import javafx.geometry.Insets?>
 <?import javafx.scene.control.*?>
-<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.layout.*?>
 
 <BorderPane xmlns="http://javafx.com/javafx/21"
             xmlns:fx="http://javafx.com/fxml/1"
             fx:controller="com.notesapp.ui.MainController">
-    <center>
-        <VBox spacing="10" alignment="CENTER">
-            <Label text="Hello, JavaFX works!" />
-            <ListView fx:id="recordingList" prefHeight="200" prefWidth="300" />
-            <Label fx:id="statusLabel" text="Status: OK" />
+
+    <!-- ===== Top Toolbar ===== -->
+    <top>
+        <VBox spacing="10">
+            <padding>
+                <Insets top="10" right="10" bottom="10" left="10"/>
+            </padding>
+
+            <HBox spacing="10">
+                <Label text="Search:"/>
+                <TextField fx:id="searchField"
+                           promptText="Search by title or tag..."
+                           HBox.hgrow="ALWAYS"/>
+                <Button text="Search" onAction="#onSearch"/>
+                <Button text="New Recording" onAction="#onNewRecording"/>
+                <Button text="Transcribe &amp; Save" onAction="#onTranscribeAndSave"/>
+            </HBox>
+
+            <HBox spacing="10">
+                <Label text="Tag:"/>
+                <TextField fx:id="tagField"
+                           promptText="Add or edit tag..."
+                           HBox.hgrow="ALWAYS"/>
+                <Button text="Save" onAction="#onSave"/>
+            </HBox>
         </VBox>
+    </top>
+
+    <!-- ===== Main Content ===== -->
+    <center>
+        <SplitPane dividerPositions="0.3">
+            <items>
+                <VBox spacing="8">
+                    <padding>
+                        <Insets top="10" right="10" bottom="10" left="10"/>
+                    </padding>
+                    <Label text="Recordings"/>
+                    <ListView fx:id="recordingList" VBox.vgrow="ALWAYS"/>
+                </VBox>
+
+                <VBox spacing="10">
+                    <padding>
+                        <Insets top="10" right="10" bottom="10" left="10"/>
+                    </padding>
+                    <Label text="Notes"/>
+                    <TextArea fx:id="noteArea" wrapText="true" prefRowCount="8"/>
+                    <Label text="Transcript"/>
+                    <TextArea fx:id="transcriptArea" wrapText="true" prefRowCount="8"/>
+                </VBox>
+            </items>
+        </SplitPane>
     </center>
+
+    <!-- ===== Status Bar ===== -->
+    <bottom>
+        <HBox alignment="CENTER_LEFT">
+            <padding>
+                <Insets top="10" right="10" bottom="10" left="10"/>
+            </padding>
+            <Label fx:id="statusLabel" text="Ready"/>
+        </HBox>
+    </bottom>
+
 </BorderPane>
