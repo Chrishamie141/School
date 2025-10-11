@@ -1,0 +1,4 @@
+com\notesapp\core\TranscriptionService.class
+com\notesapp\db\Db.class
+com\notesapp\App.class
+com\notesapp\MainFX.class

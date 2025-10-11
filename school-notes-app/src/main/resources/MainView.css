@@ -1,0 +1,78 @@
+/* =========================================================
+   MainView.css  —  Week 6  UI Styling
+   ========================================================= */
+
+/* ---------- Layout ---------- */
+.root {
+    -fx-font-family: "Segoe UI", Arial, sans-serif;
+    -fx-background-color: #fafafa;
+}
+
+/* ---------- Labels ---------- */
+.label {
+    -fx-font-size: 13px;
+    -fx-text-fill: #333;
+}
+
+/* ---------- TextField & TextArea ---------- */
+.text-field, .text-area {
+    -fx-background-color: white;
+    -fx-border-color: #ccc;
+    -fx-border-radius: 4;
+    -fx-background-radius: 4;
+    -fx-focus-color: #2196F3;
+    -fx-faint-focus-color: transparent;
+    -fx-padding: 6 8 6 8;
+    -fx-font-size: 13px;
+}
+
+.text-area {
+    -fx-wrap-text: true;
+}
+
+/* ---------- Buttons ---------- */
+.button {
+    -fx-background-color: linear-gradient(to bottom, #4CAF50, #388E3C);
+    -fx-text-fill: white;
+    -fx-font-weight: bold;
+    -fx-background-radius: 4;
+    -fx-padding: 6 14;
+    -fx-cursor: hand;
+    -fx-font-size: 13px;
+}
+
+.button:hover {
+    -fx-background-color: linear-gradient(to bottom, #45A049, #2E7D32);
+}
+
+.button:pressed {
+    -fx-background-color: #1B5E20;
+}
+
+/* ---------- ListView ---------- */
+.list-view {
+    -fx-background-color: #fff;
+    -fx-border-color: #ccc;
+    -fx-border-radius: 4;
+    -fx-background-radius: 4;
+}
+
+.list-view .list-cell:filled:selected {
+    -fx-background-color: #1976D2;
+    -fx-text-fill: white;
+}
+
+/* ---------- SplitPane Divider ---------- */
+.split-pane-divider {
+    -fx-background-color: #ddd;
+}
+
+/* ---------- Status Bar ---------- */
+.hbox {
+    -fx-alignment: center-left;
+}
+
+#statusLabel {
+    -fx-text-fill: #555;
+    -fx-font-size: 12px;
+}
