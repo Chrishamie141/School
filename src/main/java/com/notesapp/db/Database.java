@@ -1,11 +1,8 @@
 package com.notesapp.db;
-
 import java.sql.*;
 import java.nio.file.*;
-
 public class Database {
   private static Connection CONN;
-
   public static synchronized Connection get() throws SQLException {
     try { Files.createDirectories(Paths.get("data")); } catch (Exception ignored) {}
     if (CONN == null) {
@@ -17,7 +14,6 @@ public class Database {
     }
     return CONN;
   }
-
   private static void init(Connection c) throws SQLException {
     try (Statement st = c.createStatement()) {
       st.executeUpdate("""
@@ -30,7 +26,6 @@ public class Database {
           class_name TEXT
         )
       """);
-
       st.executeUpdate("""
         CREATE TABLE IF NOT EXISTS transcripts(
           id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -40,7 +35,6 @@ public class Database {
           FOREIGN KEY(recording_id) REFERENCES recordings(id) ON DELETE CASCADE
         )
       """);
-
       st.executeUpdate("""
         CREATE TABLE IF NOT EXISTS notes(
           id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -51,7 +45,6 @@ public class Database {
           FOREIGN KEY(recording_id) REFERENCES recordings(id) ON DELETE CASCADE
         )
       """);
-
       // Ensure uniqueness for transcripts.recording_id even on existing DBs
       st.executeUpdate("""
         CREATE UNIQUE INDEX IF NOT EXISTS idx_transcripts_recording_unique
@@ -60,3 +53,5 @@ public class Database {
     }
   }
 }
+
+

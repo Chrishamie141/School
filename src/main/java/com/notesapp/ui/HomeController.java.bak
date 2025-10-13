@@ -1,0 +1,88 @@
+﻿package com.notesapp.ui;
+
+import javafx.event.ActionEvent;
+import javafx.fxml.FXML;
+import javafx.fxml.FXMLLoader;
+import javafx.scene.Scene;
+import javafx.scene.control.*;
+import javafx.scene.paint.Color;
+import javafx.scene.text.Font;
+import javafx.stage.Stage;
+import javafx.util.Callback;
+import java.io.IOException;
+import java.util.LinkedHashMap;
+import java.util.Map;
+
+public class HomeController {
+
+    @FXML private ListView<String> classList;
+
+    private final Map<String, String> classIcons = new LinkedHashMap<>();
+
+    @FXML
+    public void initialize() {
+        classIcons.put("CPS 3525 - Systems Programming", "??");
+        classIcons.put("CPS 3440 - MIS", "??");
+        classIcons.put("CPS 3250 - Operating Systems", "??");
+        classIcons.put("CPS 2231 - Data Structures", "??");
+
+        classList.getItems().addAll(classIcons.keySet());
+
+        // Prevent filler cells
+        classList.setFixedCellSize(60);
+
+        // Custom cell styling
+        classList.setCellFactory(new Callback<>() {
+            @Override
+            public ListCell<String> call(ListView<String> param) {
+                return new ListCell<>() {
+                    @Override
+                    protected void updateItem(String item, boolean empty) {
+                        super.updateItem(item, empty);
+
+                        if (empty || item == null) {
+                            setText(null);
+                            setStyle("-fx-background-color: transparent;");
+                            return;
+                        }
+
+                        String icon = classIcons.getOrDefault(item, "??");
+                        setText(icon + "  " + item);
+                        setFont(Font.font("Segoe UI", 18));
+
+                        // Color-coded text
+                        if (item.contains("Systems Programming")) setTextFill(Color.web("#3E3E3E"));
+                        else if (item.contains("MIS")) setTextFill(Color.web("#0A8043"));
+                        else if (item.contains("Operating Systems")) setTextFill(Color.web("#C25400"));
+                        else if (item.contains("Data Structures")) setTextFill(Color.web("#1B66C9"));
+                        else setTextFill(Color.BLACK);
+
+                        // Padding & style
+                        setStyle("-fx-padding: 8 12;");
+                    }
+                };
+            }
+        });
+    }
+
+    @FXML
+    private void onOpenClass(ActionEvent event) {
+        String selectedClass = classList.getSelectionModel().getSelectedItem();
+        if (selectedClass == null) {
+            new Alert(Alert.AlertType.WARNING, "Please select a class.").show();
+            return;
+        }
+
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/main.fxml"));
+            Scene scene = new Scene(loader.load());
+            Stage stage = (Stage) ((Button) event.getSource()).getScene().getWindow();
+            stage.setTitle(selectedClass + " - School Notes");
+            stage.setScene(scene);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+}
+
+

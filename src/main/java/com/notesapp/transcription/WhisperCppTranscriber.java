@@ -1,31 +1,25 @@
 package com.notesapp.transcription;
-
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-
 /**
  * A thin wrapper around the whisper.cpp CLI binary.
  * If the binary or model are not found, it returns a placeholder string so the app continues to work.
  */
 public class WhisperCppTranscriber implements TranscriptionService {
-
     private final Path binary;
     private final Path model;
-
     /** Default constructor: assumes ./whisper.cpp/main and ./models/ggml-base.en.bin exist */
     public WhisperCppTranscriber() {
         this(Paths.get("whisper.cpp", "main"),
              Paths.get("models", "ggml-base.en.bin"));
     }
-
     public WhisperCppTranscriber(Path binary, Path model) {
         this.binary = binary;
         this.model  = model;
     }
-
     @Override
     public String transcribeAudio(Path audioPath) throws Exception {
         // Guard: whisper.cpp not installed
@@ -35,7 +29,6 @@ public class WhisperCppTranscriber implements TranscriptionService {
         if (audioPath == null || !Files.exists(audioPath)) {
             return "(transcription unavailable: audio file not found)";
         }
-
         // Run: ./whisper.cpp/main -m models/ggml-base.en.bin -f <audio> -otxt -of out
         ProcessBuilder pb = new ProcessBuilder(
                 binary.toString(),
@@ -45,7 +38,6 @@ public class WhisperCppTranscriber implements TranscriptionService {
                 "-of", "out"
         );
         pb.redirectErrorStream(true);
-
         Process proc = pb.start();
         try (BufferedReader r = new BufferedReader(new InputStreamReader(proc.getInputStream()))) {
             while (r.readLine() != null) {
@@ -53,7 +45,6 @@ public class WhisperCppTranscriber implements TranscriptionService {
             }
         }
         int code = proc.waitFor();
-
         Path outTxt = Paths.get("out.txt");
         if (code == 0 && Files.exists(outTxt)) {
             return Files.readString(outTxt);
@@ -61,3 +52,5 @@ public class WhisperCppTranscriber implements TranscriptionService {
         return "(transcription failed with exit code " + code + ")";
     }
 }
+
+

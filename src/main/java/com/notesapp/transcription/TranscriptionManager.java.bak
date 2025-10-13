@@ -1,0 +1,49 @@
+﻿package com.notesapp.transcription;
+import com.notesapp.dao.NoteDao;
+import com.notesapp.dao.TranscriptDao;
+import java.nio.file.Path;
+import java.sql.Connection;
+import java.util.Objects;
+/**
+ * Coordinates transcription and persistence.
+ * Supports both:
+ *   new TranscriptionManager(transcriber, noteDao, transcriptDao)
+ *   new TranscriptionManager(conn, transcriber, transcriptDao, noteDao)
+ */
+public class TranscriptionManager {
+    private final Connection conn;               // optional (unused for now)
+    private final TranscriptionService service;
+    private final TranscriptDao transcriptDao;
+    private final NoteDao noteDao;
+    /** Preferred minimal ctor used by MainCLI (3 args). */
+    public TranscriptionManager(TranscriptionService service,
+                                NoteDao noteDao,
+                                TranscriptDao transcriptDao) {
+        this(null, service, transcriptDao, noteDao);
+    }
+    /** 4-arg overload (keep for flexibility). */
+    public TranscriptionManager(Connection conn,
+                                TranscriptionService service,
+                                TranscriptDao transcriptDao,
+                                NoteDao noteDao) {
+        this.conn = conn; // may be null
+        this.service = Objects.requireNonNull(service, "service");
+        this.transcriptDao = Objects.requireNonNull(transcriptDao, "transcriptDao");
+        this.noteDao = Objects.requireNonNull(noteDao, "noteDao");
+    }
+    /**
+     * Transcribe audio and persist the transcript under the given recording id.
+     * Returns the transcript text for convenience.
+     */
+    public String transcribeAndStore(long recordingId, Path audioPath) throws Exception {
+        String text = service.transcribeAudio(audioPath);  // may throw checked exception
+        if (text == null) text = "";
+        // Persist transcript (idempotent upsert)
+        transcriptDao.upsertByRecordingId(recordingId, text);
+        // Optional: leave a short note stub if there is none yet.
+        noteDao.upsertByRecordingId(recordingId, "Auto-generated from transcription");
+        return text;
+    }
+}
+
+

@@ -1,0 +1,8 @@
+<AnchorPane xmlns:fx="http://javafx.com/fxml"
+            fx:controller="com.notesapp.ui.DailyNotesController">
+    <VBox alignment="CENTER" spacing="10" layoutX="20" layoutY="30">
+        <Label fx:id="classTitle" styleClass="header-label"/>
+        <ListView fx:id="dateList" prefWidth="300" prefHeight="250"/>
+        <Button text="View Note Details" onAction="#openNoteDetails"/>
+    </VBox>
+</AnchorPane>

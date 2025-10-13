@@ -1,12 +1,9 @@
 package com.notesapp.transcription;
-
 import com.notesapp.dao.NoteDao;
 import com.notesapp.dao.TranscriptDao;
-
 import java.nio.file.Path;
 import java.sql.Connection;
 import java.util.Objects;
-
 /**
  * Coordinates transcription and persistence.
  * Supports both:
@@ -18,14 +15,12 @@ public class TranscriptionManager {
     private final TranscriptionService service;
     private final TranscriptDao transcriptDao;
     private final NoteDao noteDao;
-
     /** Preferred minimal ctor used by MainCLI (3 args). */
     public TranscriptionManager(TranscriptionService service,
                                 NoteDao noteDao,
                                 TranscriptDao transcriptDao) {
         this(null, service, transcriptDao, noteDao);
     }
-
     /** 4-arg overload (keep for flexibility). */
     public TranscriptionManager(Connection conn,
                                 TranscriptionService service,
@@ -36,7 +31,6 @@ public class TranscriptionManager {
         this.transcriptDao = Objects.requireNonNull(transcriptDao, "transcriptDao");
         this.noteDao = Objects.requireNonNull(noteDao, "noteDao");
     }
-
     /**
      * Transcribe audio and persist the transcript under the given recording id.
      * Returns the transcript text for convenience.
@@ -44,13 +38,12 @@ public class TranscriptionManager {
     public String transcribeAndStore(long recordingId, Path audioPath) throws Exception {
         String text = service.transcribeAudio(audioPath);  // may throw checked exception
         if (text == null) text = "";
-
         // Persist transcript (idempotent upsert)
         transcriptDao.upsertByRecordingId(recordingId, text);
-
         // Optional: leave a short note stub if there is none yet.
         noteDao.upsertByRecordingId(recordingId, "Auto-generated from transcription");
-
         return text;
     }
 }
+
+

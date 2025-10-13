@@ -1,20 +1,15 @@
 package com.notesapp.dao;
-
 import com.notesapp.db.DatabaseManager;
-
 import java.sql.*;
 import java.util.Optional;
-
 public class NoteDao {
     private final Connection conn;
-
     public NoteDao(Connection conn) throws SQLException {
         this.conn = conn;
         try (Statement s = conn.createStatement()) { s.execute("PRAGMA foreign_keys = ON"); }
         createTable(conn);
     }
-
-    /** Create table if it doesn’t exist (idempotent). */
+    /** Create table if it doesnÃ¢â‚¬â„¢t exist (idempotent). */
     public static void createTable(Connection conn) throws SQLException {
         try (Statement st = conn.createStatement()) {
             st.executeUpdate("""
@@ -30,7 +25,6 @@ public class NoteDao {
             """);
         }
     }
-
     // ---------- MIGRATION HELPERS ----------
     private static boolean hasColumn(Connection c, String table, String col) throws SQLException {
         try (PreparedStatement ps = c.prepareStatement("PRAGMA table_info(" + table + ")")) {
@@ -40,7 +34,6 @@ public class NoteDao {
         }
         return false;
     }
-
     public static void migrate(Connection conn) throws SQLException {
         createTable(conn);
         if (!hasColumn(conn, "notes", "updated_at")) {
@@ -49,7 +42,6 @@ public class NoteDao {
             }
         }
     }
-
     // ---------- Row type for tests ----------
     public static class NoteRow {
         private final long id;
@@ -57,7 +49,6 @@ public class NoteDao {
         private final String content;
         private final String createdAt;
         private final String updatedAt;
-
         public NoteRow(long id, long recordingId, String content, String createdAt, String updatedAt) {
             this.id = id;
             this.recordingId = recordingId;
@@ -65,14 +56,12 @@ public class NoteDao {
             this.createdAt = createdAt;
             this.updatedAt = updatedAt;
         }
-
         public long getId() { return id; }
         public long getRecordingId() { return recordingId; }
         public String getContent() { return content; }
         public String getCreatedAt() { return createdAt; }
         public String getUpdatedAt() { return updatedAt; }
     }
-
     // ---------- Upserts ----------
     public int upsertByRecordingId(long recordingId, String content) throws SQLException {
         final String sql = """
@@ -93,12 +82,10 @@ public class NoteDao {
             throw e;
         }
     }
-
     /** Legacy overload for tests */
     public int upsertByRecordingId(int recordingId, String content, String _unused) throws SQLException {
         return upsertByRecordingId((long) recordingId, content);
     }
-
     // ---------- Title-based access (UI) ----------
     public Optional<String> findByTitle(String title) throws SQLException {
         String sql = "SELECT content FROM notes WHERE title=?";
@@ -110,7 +97,6 @@ public class NoteDao {
         }
         return Optional.empty();
     }
-
     public void save(String title, String content) throws SQLException {
         String sql = """
             INSERT INTO notes(title, content)
@@ -127,7 +113,6 @@ public class NoteDao {
             throw e;
         }
     }
-
     // ---------- Record-based read/delete ----------
     public Optional<NoteRow> findByRecordingId(long recordingId) throws SQLException {
         String sql = "SELECT * FROM notes WHERE recording_id=?";
@@ -147,7 +132,6 @@ public class NoteDao {
         }
         return Optional.empty();
     }
-
     public int deleteByRecordingId(long recordingId) throws SQLException {
         String sql = "DELETE FROM notes WHERE recording_id=?";
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -161,3 +145,5 @@ public class NoteDao {
         }
     }
 }
+
+

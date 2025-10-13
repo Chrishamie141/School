@@ -1,24 +1,19 @@
 package com.notesapp.dao;
-
 import com.notesapp.db.DatabaseManager;
 import com.notesapp.model.Recording;
-
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-
 public class RecordingDao {
     private final Connection conn;
-
     public RecordingDao(Connection conn) throws SQLException {
         this.conn = conn;
         try (Statement s = conn.createStatement()) { s.execute("PRAGMA foreign_keys = ON"); }
         RecordingDao.createTable(conn);
     }
-
     /** Create table if missing; ensure at least one variant of each logical field exists. */
     public static void createTable(Connection conn) throws SQLException {
         try (Statement st = conn.createStatement()) {
@@ -40,13 +35,11 @@ public class RecordingDao {
         ensureAny(conn, "recordings", new String[]{"tag"},
                 "ALTER TABLE recordings ADD COLUMN tag TEXT DEFAULT ''");
     }
-
     private static void ensureAny(Connection c, String table, String[] cols, String ddlIfMissing) throws SQLException {
         boolean any = false;
         for (String col : cols) if (hasColumn(c, table, col)) { any = true; break; }
         if (!any) try (Statement st = c.createStatement()) { st.execute(ddlIfMissing); }
     }
-
     private static boolean hasColumn(Connection c, String table, String col) throws SQLException {
         try (PreparedStatement ps = c.prepareStatement("PRAGMA table_info(" + table + ")")) {
             try (ResultSet rs = ps.executeQuery()) {
@@ -55,12 +48,10 @@ public class RecordingDao {
         }
         return false;
     }
-
     private String existingColOrThrow(String... names) throws SQLException {
         for (String n : names) if (hasColumn(conn, "recordings", n)) return n;
         throw new SQLException("None of the expected columns exist: " + String.join(",", names));
     }
-
     private String pathCol() throws SQLException {
         if (hasColumn(conn, "recordings", "audio_path")) return "audio_path";
         if (hasColumn(conn, "recordings", "file_path")) return "file_path";
@@ -68,14 +59,12 @@ public class RecordingDao {
         try (Statement st = conn.createStatement()) { st.execute("ALTER TABLE recordings ADD COLUMN audio_path TEXT"); }
         return "audio_path";
     }
-
     private String durationCol() throws SQLException {
         if (hasColumn(conn, "recordings", "duration_ms")) return "duration_ms";
         if (hasColumn(conn, "recordings", "duration")) return "duration";
         try (Statement st = conn.createStatement()) { st.execute("ALTER TABLE recordings ADD COLUMN duration_ms INTEGER NOT NULL DEFAULT 0"); }
         return "duration_ms";
     }
-
     private List<String> createdCols() throws SQLException {
         List<String> cols = new ArrayList<>();
         if (hasColumn(conn, "recordings", "created_at")) cols.add("created_at");
@@ -88,13 +77,11 @@ public class RecordingDao {
         }
         return cols;
     }
-
     /* ---------------- App API (explicit args) ---------------- */
     public long insert(String title, String filePath, long durationMs, long createdAtEpochMs) throws SQLException {
         String pcol = pathCol();
         String dcol = durationCol();
         List<String> ccols = createdCols();
-
         StringBuilder sbCols = new StringBuilder("title, ").append(pcol).append(", ").append(dcol);
         StringBuilder sbVals = new StringBuilder("?,?,?");
         for (int i = 0; i < ccols.size(); i++) {
@@ -103,7 +90,6 @@ public class RecordingDao {
         }
         sbCols.append(", class_name, tag");
         sbVals.append(", NULL, ''");
-
         String sql = "INSERT INTO recordings(" + sbCols + ") VALUES (" + sbVals + ")";
         try (PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             int idx = 1;
@@ -112,16 +98,15 @@ public class RecordingDao {
             ps.setLong(idx++, durationMs);
             for (int i = 0; i < ccols.size(); i++) ps.setLong(idx++, createdAtEpochMs);
             ps.executeUpdate();
-            DatabaseManager.commit(); // ✅ Commit transaction
+            DatabaseManager.commit(); // Ã¢Å“â€¦ Commit transaction
             Long id = readGeneratedKeyOrFallback(ps, conn);
             if (id != null) return id;
         } catch (SQLException e) {
-            DatabaseManager.rollback(); // 🔁 Rollback on error
+            DatabaseManager.rollback(); // Ã°Å¸â€Â Rollback on error
             throw e;
         }
         throw new SQLException("Failed to insert recording (no id returned)");
     }
-
     public Recording insert(Recording r) throws SQLException {
         String title     = pickString(r, "getTitle", "title", "getName", "name");
         String filePath  = pickString(r, "getFilePath", "getPath", "getAudioPath", "path", "filePath", "file");
@@ -129,17 +114,14 @@ public class RecordingDao {
         long createdAtMs = pickLong(r, System.currentTimeMillis(),
                 "getCreatedAtEpochMs", "getCreatedAtMs", "getCreatedAt", "getTimestamp", "createdAtMs", "createdAt", "getRecordedAt", "recordedAt");
         String className = pickStringOrNull(r, "getClassName", "className", "getCourse", "course", "getCourseName", "courseName");
-
         String pcol = pathCol();
         String dcol = durationCol();
         List<String> ccols = createdCols();
-
         StringBuilder sbCols = new StringBuilder("title, ").append(pcol).append(", ").append(dcol);
         StringBuilder sbVals = new StringBuilder("?,?,?");
         for (int i = 0; i < ccols.size(); i++) { sbCols.append(", ").append(ccols.get(i)); sbVals.append(", ?"); }
         sbCols.append(", class_name, tag");
         sbVals.append(", ?, ''");
-
         String sql = "INSERT INTO recordings(" + sbCols + ") VALUES (" + sbVals + ")";
         try (PreparedStatement ps = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
             int idx = 1;
@@ -149,7 +131,7 @@ public class RecordingDao {
             for (int i = 0; i < ccols.size(); i++) ps.setLong(idx++, createdAtMs);
             if (className == null || className.isBlank()) ps.setNull(idx, Types.VARCHAR); else ps.setString(idx, className);
             ps.executeUpdate();
-            DatabaseManager.commit(); // ✅ commit success
+            DatabaseManager.commit(); // Ã¢Å“â€¦ commit success
             Long id = readGeneratedKeyOrFallback(ps, conn);
             if (id != null) {
                 setIdOnModel(r, id);
@@ -157,12 +139,11 @@ public class RecordingDao {
                 return r;
             }
         } catch (SQLException e) {
-            DatabaseManager.rollback(); // 🔁 rollback on failure
+            DatabaseManager.rollback(); // Ã°Å¸â€Â rollback on failure
             throw e;
         }
         throw new SQLException("Failed to insert recording (no id returned)");
     }
-
     private static Long readGeneratedKeyOrFallback(PreparedStatement ps, Connection c) {
         try (ResultSet rs = ps.getGeneratedKeys()) {
             if (rs != null && rs.next()) return rs.getLong(1);
@@ -173,16 +154,13 @@ public class RecordingDao {
         } catch (SQLException ignored) {}
         return null;
     }
-
     /* ---------------- Model-based reads ---------------- */
     public Optional<Recording> findById(long id) throws SQLException {
         String pcol = existingColOrThrow("audio_path", "file_path", "path");
         String dcol = existingColOrThrow("duration_ms", "duration");
         String ccol = existingColOrThrow("created_at", "created_at_ms", "timestamp", "recorded_at");
-
         String sql = "SELECT id, title, " + pcol + " AS _path, " + dcol + " AS _duration_ms, "
                    + ccol + " AS _created_at, class_name, tag FROM recordings WHERE id=?";
-
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setLong(1, id);
             try (ResultSet rs = ps.executeQuery()) {
@@ -191,15 +169,12 @@ public class RecordingDao {
             }
         }
     }
-
     public List<Recording> findAllModels() throws SQLException {
         String pcol = existingColOrThrow("audio_path", "file_path", "path");
         String dcol = existingColOrThrow("duration_ms", "duration");
         String ccol = existingColOrThrow("created_at", "created_at_ms", "timestamp", "recorded_at");
-
         String sql = "SELECT id, title, " + pcol + " AS _path, " + dcol + " AS _duration_ms, "
                    + ccol + " AS _created_at, class_name, tag FROM recordings ORDER BY _created_at DESC";
-
         try (PreparedStatement ps = conn.prepareStatement(sql);
              ResultSet rs = ps.executeQuery()) {
             List<Recording> out = new ArrayList<>();
@@ -207,7 +182,6 @@ public class RecordingDao {
             return out;
         }
     }
-
     /* ---------------- Simple helpers ---------------- */
     public List<String> getAllRecordingNames() throws SQLException {
         List<String> list = new ArrayList<>();
@@ -217,7 +191,6 @@ public class RecordingDao {
         }
         return list;
     }
-
     public List<String> searchByKeyword(String keyword) throws SQLException {
         List<String> list = new ArrayList<>();
         try (PreparedStatement ps = conn.prepareStatement(
@@ -230,7 +203,6 @@ public class RecordingDao {
         }
         return list;
     }
-
     public String getTagForRecording(String title) throws SQLException {
         try (PreparedStatement ps = conn.prepareStatement("SELECT tag FROM recordings WHERE title=?")) {
             ps.setString(1, title);
@@ -239,19 +211,17 @@ public class RecordingDao {
             }
         }
     }
-
     public void setTagForRecording(String title, String tag) throws SQLException {
         try (PreparedStatement ps = conn.prepareStatement("UPDATE recordings SET tag=? WHERE title=?")) {
             ps.setString(1, tag);
             ps.setString(2, title);
             ps.executeUpdate();
-            DatabaseManager.commit(); // ✅ commit change
+            DatabaseManager.commit(); // Ã¢Å“â€¦ commit change
         } catch (SQLException e) {
             DatabaseManager.rollback();
             throw e;
         }
     }
-
     /* ---------------- Reflection helpers ---------------- */
     private Recording mapToModel(ResultSet rs) throws SQLException {
         long id         = rs.getLong("id");
@@ -261,7 +231,6 @@ public class RecordingDao {
         long createdAt  = rs.getLong("_created_at");
         String classNm  = rs.getString("class_name");
         String tag      = hasColumn(conn, "recordings", "tag") ? rs.getString("tag") : "";
-
         Recording r = newInstance(Recording.class);
         setLong(r, "setId", id);
         setString(r, "setTitle", title);
@@ -276,18 +245,15 @@ public class RecordingDao {
         setFieldIfPresent(r, "tag", tag);
         return r;
     }
-
     private static <T> T newInstance(Class<T> c) {
         try { return c.getDeclaredConstructor().newInstance(); }
         catch (Exception e) { throw new RuntimeException("Model needs a no-arg ctor: " + c.getName(), e); }
     }
-
     private static void setIdOnModel(Object obj, long id) {
         setLong(obj, "setId", id);
         setInt(obj, "setId", (int) id);
         setFieldIfPresent(obj, "id", id);
     }
-
     private static String nz(String s) { return s == null ? "" : s; }
     private static void setString(Object o, String setter, String v) {
         try { Method m = o.getClass().getMethod(setter, String.class); m.invoke(o, v); } catch (Exception ignored) {}
@@ -303,7 +269,6 @@ public class RecordingDao {
     private static void setFieldIfPresent(Object o, String name, Object v) {
         try { Field f = o.getClass().getDeclaredField(name); f.setAccessible(true); f.set(o, v); } catch (Exception ignored) {}
     }
-
     private static String pickString(Object obj, String... names) {
         for (String n : names) {
             try { Method m = obj.getClass().getMethod(n); Object v = m.invoke(obj); if (v != null) return String.valueOf(v); }
@@ -311,7 +276,6 @@ public class RecordingDao {
         }
         return "";
     }
-
     private static String pickStringOrNull(Object obj, String... names) {
         for (String n : names) {
             try { Method m = obj.getClass().getMethod(n); Object v = m.invoke(obj);
@@ -320,7 +284,6 @@ public class RecordingDao {
         }
         return null;
     }
-
     private static long pickLong(Object obj, long def, String... names) {
         for (String n : names) {
             try {
@@ -333,7 +296,6 @@ public class RecordingDao {
         }
         return def;
     }
-
     /* ---------- Legacy test helpers ---------- */
     public int deleteById(long id) throws SQLException {
         try (PreparedStatement ps = conn.prepareStatement("DELETE FROM recordings WHERE id=?")) {
@@ -346,7 +308,6 @@ public class RecordingDao {
             throw e;
         }
     }
-
     public void updateClassName(int id, String className) throws SQLException {
         try (PreparedStatement ps = conn.prepareStatement("UPDATE recordings SET class_name=? WHERE id=?")) {
             ps.setString(1, className);
@@ -359,3 +320,5 @@ public class RecordingDao {
         }
     }
 }
+
+

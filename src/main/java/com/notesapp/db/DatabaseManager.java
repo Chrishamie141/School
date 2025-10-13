@@ -1,15 +1,11 @@
 package com.notesapp.db;
-
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
-
 public class DatabaseManager {
     private static final String URL = "jdbc:sqlite:data/app.db";
     private static Connection connection;
-
     private DatabaseManager() {}
-
     public static Connection getConnection() throws SQLException {
         if (connection == null || connection.isClosed()) {
             connection = DriverManager.getConnection(URL);
@@ -17,7 +13,6 @@ public class DatabaseManager {
         }
         return connection;
     }
-
     public static void commit() {
         try {
             if (connection != null && !connection.isClosed()) connection.commit();
@@ -25,7 +20,6 @@ public class DatabaseManager {
             e.printStackTrace();
         }
     }
-
     public static void rollback() {
         try {
             if (connection != null && !connection.isClosed()) connection.rollback();
@@ -33,7 +27,6 @@ public class DatabaseManager {
             e.printStackTrace();
         }
     }
-
     public static void close() {
         try {
             if (connection != null && !connection.isClosed()) connection.close();
@@ -42,3 +35,5 @@ public class DatabaseManager {
         }
     }
 }
+
+

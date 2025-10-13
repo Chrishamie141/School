@@ -9,3 +9,5 @@ public class Note {
   public String getContent(){return content;} public void setContent(String c){this.content=c;}
   public String getUpdatedAt(){return updatedAt;} public void setUpdatedAt(String u){this.updatedAt=u;}
 }
+
+

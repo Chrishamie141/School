@@ -1,12 +1,9 @@
 package com.notesapp.db;
-
 import java.nio.file.*;
 import java.sql.*;
-
 public class Db {
     private static final String DB_PATH = "data/notes.db";
     private static final String JDBC_URL = "jdbc:sqlite:" + DB_PATH;
-
     public static void init() {
         try {
             Files.createDirectories(Paths.get("data"));
@@ -26,8 +23,9 @@ public class Db {
             throw new RuntimeException("DB init failed", e);
         }
     }
-
     public static Connection connect() throws SQLException {
         return DriverManager.getConnection(JDBC_URL);
     }
 }
+
+

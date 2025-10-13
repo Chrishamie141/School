@@ -1,0 +1,10 @@
+<AnchorPane xmlns:fx="http://javafx.com/fxml"
+            fx:controller="com.notesapp.ui.NoteDetailController">
+    <VBox spacing="10" layoutX="20" layoutY="30">
+        <Label fx:id="noteDate" styleClass="header-label"/>
+        <TextArea fx:id="recordingArea" promptText="Recording details..." prefHeight="80"/>
+        <TextArea fx:id="transcriptArea" promptText="Transcript..." prefHeight="100"/>
+        <TextArea fx:id="noteArea" promptText="Your notes..." prefHeight="100"/>
+        <Button text="Save Note" onAction="#saveNote"/>
+    </VBox>
+</AnchorPane>

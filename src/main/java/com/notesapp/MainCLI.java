@@ -1,5 +1,4 @@
 package com.notesapp;
-
 import com.notesapp.dao.NoteDao;
 import com.notesapp.dao.RecordingDao;
 import com.notesapp.dao.TranscriptDao;
@@ -7,30 +6,23 @@ import com.notesapp.export.PdfExporter;
 import com.notesapp.transcription.TranscriptionManager;
 import com.notesapp.transcription.TranscriptionService;
 import com.notesapp.transcription.WhisperCppTranscriber;
-
 import java.nio.file.*;
 import java.sql.*;
-
 public class MainCLI {
-
     public static void main(String[] args) {
         try {
             if (args.length == 0) {
                 printUsage();
                 return;
             }
-
             Files.createDirectories(Paths.get("data"));
             String cmd = args[0].toLowerCase();
-
             switch (cmd) {
-
                 /* ---------- DB setup ---------- */
                 case "initdb", "migrate" -> {
                     try (Connection conn = open()) { bootstrap(conn); }
                     System.out.println("Database initialized or migrated.");
                 }
-
                 /* ---------- List recordings ---------- */
                 case "list" -> {
                     try (Connection conn = open();
@@ -38,7 +30,6 @@ public class MainCLI {
                                  "SELECT id, title, duration_ms, audio_path, tag FROM recordings ORDER BY id"
                          );
                          ResultSet rs = ps.executeQuery()) {
-
                         System.out.printf("%-4s | %-25s | %-10s | %-30s | %-15s%n",
                                 "ID", "Title", "Duration", "Audio Path", "Tag");
                         System.out.println("=".repeat(90));
@@ -52,7 +43,6 @@ public class MainCLI {
                         }
                     }
                 }
-
                 /* ---------- Show single recording ---------- */
                 case "show" -> {
                     if (args.length < 2) {
@@ -64,7 +54,6 @@ public class MainCLI {
                         displayRecording(conn, rid);
                     }
                 }
-
                 /* ---------- Delete recording (SQL, no DAO dep) ---------- */
                 case "delete" -> {
                     if (args.length < 2) {
@@ -79,7 +68,6 @@ public class MainCLI {
                         System.out.println(n > 0 ? "Deleted." : "Nothing deleted.");
                     }
                 }
-
                 /* ---------- Export PDF (use 4-arg exporter) ---------- */
                 case "export" -> {
                     if (args.length < 3) {
@@ -88,10 +76,8 @@ public class MainCLI {
                     }
                     long rid = Long.parseLong(args[1]);
                     Path out = Paths.get(args[2]);
-
                     try (Connection conn = open()) {
                         bootstrap(conn);
-
                         String title = getString(conn,
                                 "SELECT title FROM recordings WHERE id=?", rid);
                         String tag = getString(conn,
@@ -101,14 +87,12 @@ public class MainCLI {
                         String transcript = getString(conn,
                                 "SELECT " + resolveTranscriptBodyColumn(conn) +
                                         " FROM transcripts WHERE recording_id=?", rid);
-
                         // Avoid dependency on 5-arg PdfExporter; fold tag into title here.
                         String finalTitle = (tag == null || tag.isBlank()) ? title : (title + " [" + tag + "]");
                         PdfExporter.export(finalTitle, note, transcript, out);
                         System.out.println("Exported to " + out.toAbsolutePath());
                     }
                 }
-
                 /* ---------- Update note / transcript ---------- */
                 case "set-note" -> {
                     if (args.length < 3) {
@@ -123,7 +107,6 @@ public class MainCLI {
                         System.out.println("Note saved.");
                     }
                 }
-
                 case "set-transcript" -> {
                     if (args.length < 3) {
                         System.out.println("Usage: set-transcript <recordingId> \"<text>\"");
@@ -137,7 +120,6 @@ public class MainCLI {
                         System.out.println("Transcript saved.");
                     }
                 }
-
                 /* ---------- Add or update tag ---------- */
                 case "set-tag" -> {
                     if (args.length < 3) {
@@ -157,7 +139,6 @@ public class MainCLI {
                         }
                     }
                 }
-
                 /* ---------- Search by keyword/tag ---------- */
                 case "search" -> {
                     if (args.length < 2) {
@@ -181,7 +162,6 @@ public class MainCLI {
                         }
                     }
                 }
-
                 /* ---------- Transcribe ---------- */
                 case "transcribe" -> {
                     if (args.length < 3) {
@@ -190,23 +170,17 @@ public class MainCLI {
                     }
                     Path audio = Paths.get(args[1]);
                     String title = args[2];
-
                     try (Connection conn = open()) {
                         bootstrap(conn);
-
                         var rdao = new RecordingDao(conn);
                         var ndao = new NoteDao(conn);
                         var tdao = new TranscriptDao(conn);
-
                         long rid = rdao.insert(title, audio.toString(), 0L, System.currentTimeMillis());
                         System.out.println("Recording created id=" + rid);
-
                         Path bin = pathEnv("WHISPER_CPP_BIN");
                         Path model = pathEnv("WHISPER_CPP_MODEL");
-
                         TranscriptionService transcriber = new WhisperCppTranscriber(bin, model);
                         var manager = new TranscriptionManager(transcriber, ndao, tdao);
-
                         String txt;
                         try {
                             txt = manager.transcribeAndStore(rid, audio);
@@ -218,7 +192,6 @@ public class MainCLI {
                         ndao.upsertByRecordingId(rid, "Auto-generated from transcription");
                     }
                 }
-
                 default -> printUsage();
             }
         } catch (Exception e) {
@@ -227,15 +200,12 @@ public class MainCLI {
             System.exit(1);
         }
     }
-
     /* -------------------- helpers -------------------- */
-
     private static Connection open() throws SQLException {
         Connection conn = DriverManager.getConnection("jdbc:sqlite:data/app.db");
         try (Statement st = conn.createStatement()) { st.execute("PRAGMA foreign_keys = ON"); }
         return conn;
     }
-
     private static void bootstrap(Connection conn) throws SQLException {
         RecordingDao.createTable(conn);
         NoteDao.createTable(conn);
@@ -245,7 +215,6 @@ public class MainCLI {
             st.execute("ALTER TABLE recordings ADD COLUMN tag TEXT DEFAULT ''");
         } catch (SQLException ignored) {}
     }
-
     private static void displayRecording(Connection conn, long rid) throws SQLException {
         String title = getString(conn, "SELECT title FROM recordings WHERE id=?", rid);
         String tag = getString(conn, "SELECT tag FROM recordings WHERE id=?", rid);
@@ -253,11 +222,9 @@ public class MainCLI {
         String transcript = getString(conn,
                 "SELECT " + resolveTranscriptBodyColumn(conn) +
                         " FROM transcripts WHERE recording_id=?", rid);
-
         System.out.printf("Title: %s%nTag: %s%n%nNote:%n%s%n%nTranscript:%n%s%n",
                 title, tag, note, transcript);
     }
-
     private static String getString(Connection conn, String sql, long id) throws SQLException {
         try (PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setLong(1, id);
@@ -266,12 +233,10 @@ public class MainCLI {
             }
         }
     }
-
     private static Path pathEnv(String var) {
         String val = System.getenv(var);
         return (val == null || val.isBlank()) ? null : Paths.get(val);
     }
-
     private static String resolveTranscriptBodyColumn(Connection conn) throws SQLException {
         if (tableHasColumn(conn, "transcripts", "text")) return "text";
         if (tableHasColumn(conn, "transcripts", "content")) return "content";
@@ -280,7 +245,6 @@ public class MainCLI {
         }
         return "text";
     }
-
     private static boolean tableHasColumn(Connection conn, String table, String col) throws SQLException {
         try (PreparedStatement ps = conn.prepareStatement("PRAGMA table_info(" + table + ")")) {
             try (ResultSet rs = ps.executeQuery()) {
@@ -290,9 +254,7 @@ public class MainCLI {
         }
         return false;
     }
-
     private static String nullToEmpty(String s) { return s == null ? "" : s; }
-
     private static void printUsage() {
         System.out.println("""
                 Usage:
@@ -310,3 +272,5 @@ public class MainCLI {
                 """);
     }
 }
+
+

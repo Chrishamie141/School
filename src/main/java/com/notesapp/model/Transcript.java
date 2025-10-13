@@ -9,3 +9,5 @@ public class Transcript {
   public String getContent(){return content;} public void setContent(String c){this.content=c;}
   public String getCreatedAt(){return createdAt;} public void setCreatedAt(String c){this.createdAt=c;}
 }
+
+

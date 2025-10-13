@@ -1,7 +1,5 @@
 package com.notesapp.transcription;
-
 import java.nio.file.Path;
-
 /** Contract for transcription implementations. */
 public interface TranscriptionService {
     /**
@@ -13,3 +11,5 @@ public interface TranscriptionService {
      */
     String transcribeAudio(Path audioPath) throws Exception;
 }
+
+

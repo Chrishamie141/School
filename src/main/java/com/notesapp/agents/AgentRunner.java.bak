@@ -1,0 +1,61 @@
+﻿package com.notesapp.agents;
+import com.notesapp.agents.adapters.NoteRepositoryAdapter;
+import com.notesapp.agents.adapters.OpenPdfExporterAdapter;
+import com.notesapp.agents.adapters.WhisperTranscriptionAdapter;
+import com.notesapp.agents.dto.*;
+import com.notesapp.agents.impl.*;
+import com.notesapp.agents.ports.NoteRepository;
+import com.notesapp.agents.ports.PdfExportService;
+import com.notesapp.agents.ports.TranscriptionService;
+import java.nio.file.Path;
+import java.time.LocalDate;
+import java.util.List;
+public class AgentRunner {
+    public static void main(String[] args) {
+        System.out.println("Ã¢Å“â€¦ Running School Notes Agent System...");
+        try {
+            // === 1Ã¯Â¸ÂÃ¢Æ’Â£ Create Adapters (connect to existing DAOs/services) ===
+            TranscriptionService transcriber =
+                    new WhisperTranscriptionAdapter(new com.notesapp.transcription.WhisperCppTranscriber());
+            NoteRepository notes =
+                    new NoteRepositoryAdapter(new com.notesapp.dao.NoteDao());
+            PdfExportService pdf =
+                    new OpenPdfExporterAdapter(new com.notesapp.export.PdfExporter());
+            // === 2Ã¯Â¸ÂÃ¢Æ’Â£ Import audio file ===
+            var importAudio = new ImportAudioAgent()
+                    .run(new ImportAudioIn(Path.of("C:/School/audio/lecture1.mp3"), Path.of("data/recordings")));
+            importAudio.getError().ifPresent(err -> System.err.println("Ã¢ÂÅ’ Import failed: " + err));
+            // === 3Ã¯Â¸ÂÃ¢Æ’Â£ Transcribe ===
+            var transcribe = new TranscribeAudioAgent(transcriber)
+                    .run(new TranscribeAudioIn(importAudio.get().orElseThrow().storedPath()));
+            transcribe.getError().ifPresent(err -> System.err.println("Ã¢ÂÅ’ Transcribe failed: " + err));
+            // === 4Ã¯Â¸ÂÃ¢Æ’Â£ Save note ===
+            var save = new SaveNoteAgent(notes)
+                    .run(new SaveNoteIn(101L, LocalDate.now(), "Week 7 Ã¢â‚¬â€œ Graphs",
+                            "Dijkstra vs BFS lecture notes.",
+                            transcribe.get().map(TranscribeAudioOut::transcriptId).orElse(null)));
+            save.getError().ifPresent(err -> System.err.println("Ã¢ÂÅ’ Save failed: " + err));
+            // === 5Ã¯Â¸ÂÃ¢Æ’Â£ Tag note ===
+            var tag = new TagNoteAgent(notes)
+                    .run(new TagNoteIn(save.get().orElseThrow().noteId(), List.of("CPS-3440", "graphs", "week7")));
+            tag.getError().ifPresent(err -> System.err.println("Ã¢ÂÅ’ Tag failed: " + err));
+            // === 6Ã¯Â¸ÂÃ¢Æ’Â£ Search notes ===
+            var search = new SearchNotesAgent(notes)
+                    .run(new SearchNotesIn("graphs", 101L, null));
+            search.get().ifPresent(r -> {
+                System.out.println("Ã°Å¸â€Å½ Found " + r.results().size() + " notes:");
+                r.results().forEach(s -> System.out.println("   " + s.noteId() + " | " + s.title()));
+            });
+            // === 7Ã¯Â¸ÂÃ¢Æ’Â£ Export to PDF ===
+            var export = new ExportNotePdfAgent(pdf)
+                    .run(new ExportNotePdfIn(save.get().orElseThrow().noteId(), Path.of("exports")));
+            export.get().ifPresent(out -> System.out.println("Ã°Å¸â€œâ€ž PDF created at: " + out.pdfPath()));
+            System.out.println("\nÃ¢Å“â€¦ All agents executed successfully!");
+        } catch (Exception e) {
+            System.err.println("Ã°Å¸â€™Â¥ AgentRunner failed: " + e.getMessage());
+            e.printStackTrace();
+        }
+    }
+}
+
+

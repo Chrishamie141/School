@@ -1,13 +1,9 @@
 package com.notesapp.dao;
-
 import com.notesapp.db.DatabaseManager;
-
 import java.sql.*;
 import java.util.Optional;
-
 public class TranscriptDao {
     private final Connection conn;
-
     public TranscriptDao(Connection conn) throws SQLException {
         this.conn = conn;
         try (Statement s = conn.createStatement()) {
@@ -15,7 +11,6 @@ public class TranscriptDao {
         }
         createTable(conn);
     }
-
     /** Create table if not exists (idempotent). */
     public static void createTable(Connection conn) throws SQLException {
         try (Statement st = conn.createStatement()) {
@@ -30,7 +25,6 @@ public class TranscriptDao {
             """);
         }
     }
-
     // ---------- MIGRATION HELPERS ----------
     private static boolean hasColumn(Connection c, String table, String col) throws SQLException {
         try (PreparedStatement ps = c.prepareStatement("PRAGMA table_info(" + table + ")")) {
@@ -42,11 +36,9 @@ public class TranscriptDao {
         }
         return false;
     }
-
     /** Add missing 'text' or 'created_at' columns for older DBs. Idempotent. */
     public static void migrate(Connection conn) throws SQLException {
         createTable(conn);
-
         boolean hasText = hasColumn(conn, "transcripts", "text");
         boolean hasContent = hasColumn(conn, "transcripts", "content");
         if (!hasText && !hasContent) {
@@ -60,36 +52,30 @@ public class TranscriptDao {
             }
         }
     }
-
     // ---------- Row type ----------
     public static class TranscriptRow {
         private final long id;
         private final long recordingId;
         private final String text;
         private final String createdAt;
-
         public TranscriptRow(long id, long recordingId, String text, String createdAt) {
             this.id = id;
             this.recordingId = recordingId;
             this.text = text;
             this.createdAt = createdAt;
         }
-
         public long getId() { return id; }
         public long getRecordingId() { return recordingId; }
         public String getText() { return text; }
         public String getCreatedAt() { return createdAt; }
     }
-
     // ---------- Upserts ----------
     public int upsertByRecordingId(int recordingId, String text, String _unused) throws SQLException {
         return upsertByRecordingId((long) recordingId, text);
     }
-
     public int upsertByRecordingId(int recordingId, String text) throws SQLException {
         return upsertByRecordingId((long) recordingId, text);
     }
-
     public int upsertByRecordingId(long recordingId, String text) throws SQLException {
         final String sql = """
             INSERT INTO transcripts (recording_id, text, created_at)
@@ -101,19 +87,17 @@ public class TranscriptDao {
             ps.setLong(1, recordingId);
             ps.setString(2, text == null ? "" : text);
             int updated = ps.executeUpdate();
-            DatabaseManager.commit();     // ✅ commit on success
+            DatabaseManager.commit();     // Ã¢Å“â€¦ commit on success
             return updated;
         } catch (SQLException e) {
-            DatabaseManager.rollback();   // 🔁 rollback on error
+            DatabaseManager.rollback();   // Ã°Å¸â€Â rollback on error
             throw e;
         }
     }
-
     // ---------- Reads ----------
     public Optional<TranscriptRow> findByRecordingId(int recordingId) throws SQLException {
         return findByRecordingId((long) recordingId);
     }
-
     public Optional<TranscriptRow> findByRecordingId(long recordingId) throws SQLException {
         final String sql = """
             SELECT id, recording_id, text, created_at
@@ -133,7 +117,6 @@ public class TranscriptDao {
             }
         }
     }
-
     // ---------- Deletes ----------
     public int deleteByRecordingId(long recordingId) throws SQLException {
         String sql = "DELETE FROM transcripts WHERE recording_id = ?";
@@ -147,7 +130,6 @@ public class TranscriptDao {
             throw e;
         }
     }
-
     // ---------- Title-based helpers (UI) ----------
     public Optional<String> findByTitle(String title) throws SQLException {
         String sql = """
@@ -164,7 +146,6 @@ public class TranscriptDao {
         }
         return Optional.empty();
     }
-
     public void save(String title, String transcript) throws SQLException {
         String sql = """
             INSERT INTO transcripts(recording_id, text)
@@ -175,10 +156,12 @@ public class TranscriptDao {
             ps.setString(1, transcript);
             ps.setString(2, title);
             ps.executeUpdate();
-            DatabaseManager.commit();     // ✅ commit save
+            DatabaseManager.commit();     // Ã¢Å“â€¦ commit save
         } catch (SQLException e) {
             DatabaseManager.rollback();
             throw e;
         }
     }
 }
+
+

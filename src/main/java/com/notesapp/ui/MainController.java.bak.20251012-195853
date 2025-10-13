@@ -1,0 +1,56 @@
+package com.notesapp.ui;
+
+import javafx.event.ActionEvent;
+import javafx.fxml.FXML;
+import javafx.fxml.FXMLLoader;
+import javafx.scene.Scene;
+import javafx.scene.control.*;
+import javafx.stage.Stage;
+import javafx.scene.control.Button;
+
+public class MainController {
+
+    @FXML private TextField searchField;
+    @FXML private TextField tagField;
+    @FXML private TextArea noteArea;
+    @FXML private TextArea transcriptArea;
+    @FXML private ListView<String> recordingList;
+    @FXML private Label statusLabel;
+
+    // ===== Event Handlers =====
+
+    @FXML
+    private void onSearch(ActionEvent event) {
+        statusLabel.setText("Searching for: " + searchField.getText());
+    }
+
+    @FXML
+    private void onNewRecording(ActionEvent event) {
+        statusLabel.setText("New recording started...");
+    }
+
+    @FXML
+    private void onTranscribeAndSave(ActionEvent event) {
+        statusLabel.setText("Transcribing and saving note...");
+    }
+
+    @FXML
+    private void onSave(ActionEvent event) {
+        statusLabel.setText("Note saved with tag: " + tagField.getText());
+    }
+
+    @FXML
+    private void onBackToHome(ActionEvent event) {
+        try {
+            FXMLLoader loader = new FXMLLoader(getClass().getResource("/home.fxml"));
+            Scene scene = new Scene(loader.load());
+            Stage stage = (Stage) ((Button) event.getSource()).getScene().getWindow();
+            stage.setTitle("School Notes App");
+            stage.setScene(scene);
+        } catch (Exception e) {
+            e.printStackTrace();
+            statusLabel.setText("Error returning to home: " + e.getMessage());
+        }
+    }
+}
+
